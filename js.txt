@@ -1,0 +1,85 @@
+const chatInput = document.querySelector(".chat-input textarea");
+const sendChatBtn = document.querySelector(".chat-input span");
+const chatbox = document.querySelector(".chatbox");
+const chatbotToggler = document.querySelector(".chatbot-toggler");
+const chatbotCloseBtn = document.querySelector(".close-btn");
+
+let userMessage;
+
+// Helper to create a chat element
+const createChatLi = (message, className) => {
+    const chatLi = document.createElement("li");
+    chatLi.classList.add("chat", className);
+
+    let chatContent = className === "outgoing" 
+        ? `<p></p>` 
+        : `<span class="material-icons">smart_toy</span><p></p>`;
+
+    chatLi.innerHTML = chatContent;
+    chatLi.querySelector("p").innerHTML = message;
+    return chatLi;
+}
+
+// Function to handle sending the message and receiving the response
+const generateResponse = async (incomingChatLi) => {
+    const API_URL = "http://127.0.0.1:5000/get_recipe";
+    const messageElement = incomingChatLi.querySelector("p");
+
+    try {
+        console.log("Sending request:", { ingredients: userMessage });
+
+        const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ingredients: userMessage })  // Updated key from "message" to "ingredients"
+        });
+
+        const data = await response.json();
+        console.log("API Response:", data);
+
+        if (data.message) {
+            // Handle greetings or errors
+            messageElement.textContent = data.message;
+        } else if (data.recipe) {
+            // Display recipe details
+            const { title, instructions } = data.recipe;
+            messageElement.innerHTML = `<strong>🍽️ ${title}</strong><br><br>${instructions.replace(/\n/g, "<br>")}`;
+        } else {
+            throw new Error("Unexpected response format.");
+        }
+    } catch (error) {
+        console.error("Error:", error);
+        messageElement.classList.add("error");
+        messageElement.textContent = "Oops! Something went wrong. Please try again.";
+    } finally {
+        chatbox.scrollTo(0, chatbox.scrollHeight);
+    }
+};
+
+// Function to handle message sending
+const handleChat = () => {
+    userMessage = chatInput.value.trim();
+    if (!userMessage) return;
+
+    chatInput.value = "";
+    chatbox.appendChild(createChatLi(userMessage, "outgoing"));
+    chatbox.scrollTo(0, chatbox.scrollHeight);
+
+    setTimeout(() => {
+        const incomingChatLi = createChatLi("Thinking...", "incoming");
+        chatbox.appendChild(incomingChatLi);
+        generateResponse(incomingChatLi);
+    }, 600);
+}
+
+// Event listeners for Enter key and send button
+chatInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleChat();
+    }
+});
+
+sendChatBtn.addEventListener("click", handleChat);
+chatbotCloseBtn.addEventListener("click", () => document.body.classList.remove("show-chatbot"));
+chatbotToggler.addEventListener("click", () => document.body.classList.toggle("show-chatbot"));

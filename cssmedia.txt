@@ -1,0 +1,28 @@
+@media(max-width:400px){
+   .container{
+      visibility: hidden;
+    }
+    .container .pic{
+      width: 100%;
+      height: 100%;
+      object-fit: fill;
+    }
+    .container .top-left{
+      bottom: 100px;
+      position: absolute;
+      visibility: collapse;
+    }
+    .chatbot{
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        height: 100%;
+        border-radius: 0;
+    }
+    .chatbot .chatbox{
+        height: 90%;
+    }
+    .chatbot header span{
+        display: block;
+    }
+}

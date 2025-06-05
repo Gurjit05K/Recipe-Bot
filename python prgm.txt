@@ -1,0 +1,66 @@
+from flask import Flask, request, jsonify
+import requests
+import os
+import dialogflow
+from google.api_core.exceptions import InvalidArgument
+
+app = Flask(__name__)
+
+SPOONACULAR_API_KEY = "YOUR_SPOONACULAR_API_KEY"
+USDA_API_KEY = "YOUR_USDA_API_KEY"
+
+# Set the environment variable for Dialogflow credentials
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "/path/to/your/dialogflow-key.json"
+
+# Dialogflow setup
+DIALOGFLOW_PROJECT_ID = "YOUR_DIALOGFLOW_PROJECT_ID"
+DIALOGFLOW_LANGUAGE_CODE = "en"
+SESSION_ID = "me"
+
+@app.route("/get_recipe", methods=["POST"])
+def get_recipe():
+    user_message = request.json.get("message")
+    if not user_message:
+        return jsonify({"reply": "Please provide a valid message."})
+
+    # Dialogflow intent detection
+    session_client = dialogflow.SessionsClient()
+    session = session_client.session_path(DIALOGFLOW_PROJECT_ID, SESSION_ID)
+    text_input = dialogflow.TextInput(text=user_message, language_code=DIALOGFLOW_LANGUAGE_CODE)
+    query_input = dialogflow.QueryInput(text=text_input)
+    
+    try:
+        response = session_client.detect_intent(request={"session": session, "query_input": query_input})
+        intent = response.query_result.intent.display_name
+    except InvalidArgument:
+        return jsonify({"reply": "Error with Dialogflow API. Please check your setup."})
+
+    if intent == "Find Recipe":
+        recipe_name = response.query_result.parameters.fields["food"].string_value
+        # Fetch recipe from Spoonacular API
+        spoonacular_url = f"https://api.spoonacular.com/recipes/complexSearch?query={recipe_name}&apiKey={SPOONACULAR_API_KEY}"
+        recipe_response = requests.get(spoonacular_url)
+        if recipe_response.status_code == 200 and recipe_response.json().get("results"):
+            recipe = recipe_response.json()["results"][0]
+            recipe_info = f"{recipe['title']}\nRecipe Link: https://spoonacular.com/recipes/{recipe['title'].replace(' ', '-').lower()}-{recipe['id']}"
+        else:
+            recipe_info = "Sorry, I couldn't find a recipe for that."
+
+        # Fetch nutritional info from USDA API
+        usda_url = f"https://api.nal.usda.gov/fdc/v1/foods/search?query={recipe_name}&api_key={USDA_API_KEY}"
+        usda_response = requests.get(usda_url)
+        if usda_response.status_code == 200 and usda_response.json().get("foods"):
+            food_info = usda_response.json()["foods"][0]
+            nutrients = ", ".join([f"{nutrient['nutrientName']}: {nutrient['value']} {nutrient['unitName']}" for nutrient in food_info["foodNutrients"]])
+            nutrition_info = f"Nutritional info: {nutrients}"
+        else:
+            nutrition_info = "No nutritional information found."
+
+        reply = f"{recipe_info}\n\n{nutrition_info}"
+    else:
+        reply = response.query_result.fulfillment_text
+
+    return jsonify({"reply": reply})
+
+if __name__ == "__main__":
+    app.run(debug=True)
