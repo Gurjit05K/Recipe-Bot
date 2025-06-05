@@ -1,0 +1,63 @@
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import requests
+
+app = Flask(__name__)
+CORS(app)
+
+API_KEY = "fc1e7aa72afe4c139e6f05e6485e16d3"
+
+@app.route("/get_recipe", methods=["POST"])
+def get_recipe():
+    try:
+        data = request.get_json()
+        print("Received request data:", data)  # Debugging
+
+        if not data or "ingredients" not in data:
+            return jsonify({"recipe": None, "message": "Invalid request. Provide ingredients."})
+
+        user_input = data["ingredients"].strip().lower()
+
+        # Handle greetings first
+        if user_input in ["hi", "hello", "hey"]:
+            return jsonify({"recipe": None, "message": "Hello! Tell me ingredients, and I'll find a recipe for you."})
+
+        # Convert input into a format for Spoonacular API
+        ingredients = user_input.replace(" ", ",")
+        print("Ingredients:", ingredients)  # Debugging step
+
+        # Get recipe based on ingredients
+        url = f"https://api.spoonacular.com/recipes/findByIngredients?ingredients={ingredients}&number=1&apiKey={API_KEY}"
+        response = requests.get(url)
+
+        if response.status_code != 200:
+            return jsonify({"recipe": None, "message": "Failed to fetch recipes."})
+
+        recipes = response.json()
+        if not recipes:
+            return jsonify({"recipe": None, "message": "No recipes found for these ingredients."})
+
+        recipe_id = recipes[0]["id"]
+
+        # Get full recipe details
+        details_url = f"https://api.spoonacular.com/recipes/{recipe_id}/information?apiKey={API_KEY}"
+        details_response = requests.get(details_url)
+
+        if details_response.status_code != 200:
+            return jsonify({"recipe": None, "message": "Failed to fetch recipe details."})
+
+        details = details_response.json()
+
+        return jsonify({
+            "recipe": {
+                "title": details["title"],
+                "instructions": details.get("instructions", "No instructions provided."),
+            }
+        })
+
+    except Exception as e:
+        print("Error:", str(e))  # Debugging step
+        return jsonify({"recipe": None, "message": f"Server Error: {str(e)}"})
+
+if __name__ == "__main__":
+    app.run(debug=True, port=5000)
