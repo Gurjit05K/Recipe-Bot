@@ -5,7 +5,7 @@ import requests
 app = Flask(__name__)
 CORS(app)
 
-API_KEY = "779f5cdd70654ae1b363a51b50c30f7d"
+API_KEY = YOUR_API_KEY
 
 user_data = {}  # Store user session data
 
