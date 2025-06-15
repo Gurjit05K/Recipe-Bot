@@ -1,11 +1,14 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
+from dotenv import load_dotenv
+import os
+
+def configure():
+    load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
-
-API_KEY = "779f5cdd70654ae1b363a51b50c30f7d"
 
 user_data = {}  # Store user session data
 
@@ -97,7 +100,7 @@ def get_recipe():
 
 # Fetch Recipes Based on Ingredients and Preference
 def fetch_recipes(ingredients, preference):
-    url = f"https://api.spoonacular.com/recipes/findByIngredients?ingredients={ingredients}&number=10&apiKey={API_KEY}"
+    url = f"https://api.spoonacular.com/recipes/findByIngredients?ingredients={ingredients}&number=10&apiKey={os.getenv('API_KEY')}"
 
     if preference == "vegetarian":
         url += "&diet=vegetarian"  # Ensure only vegetarian meals are fetched
@@ -111,7 +114,7 @@ def fetch_recipes(ingredients, preference):
     detailed_recipes = []
 
     for recipe in recipes:
-        details_url = f"https://api.spoonacular.com/recipes/{recipe['id']}/information?includeNutrition=true&apiKey={API_KEY}"
+        details_url = f"https://api.spoonacular.com/recipes/{recipe['id']}/information?includeNutrition=true&apiKey={os.getenv('API_KEY')}"
         details_response = requests.get(details_url)
 
         if details_response.status_code == 200:
@@ -246,7 +249,7 @@ def webhook():
             return jsonify({"fulfillmentText": "Please enter at least one ingredient."})
 
     elif intent == "random_recipe_intent":
-        url = f"https://api.spoonacular.com/recipes/random?number=1&apiKey={API_KEY}"
+        url = f"https://api.spoonacular.com/recipes/random?number=1&apiKey={os.getenv('API_KEY')}"
         response = requests.get(url)
         if response.status_code == 200:
             recipe = response.json()["recipes"][0]
@@ -298,7 +301,7 @@ def webhook():
         if not ingredients:
             return jsonify({"fulfillmentText": "Please enter some ingredients first."})
 
-        url = f"https://api.spoonacular.com/recipes/complexSearch?includeIngredients={ingredients}&sort={sort_option}&number=3&apiKey={API_KEY}"
+        url = f"https://api.spoonacular.com/recipes/complexSearch?includeIngredients={ingredients}&sort={sort_option}&number=3&apiKey={os.getenv('API_KEY')}"
         if preference == "vegetarian":
             url += "&diet=vegetarian"
 
@@ -317,4 +320,5 @@ def webhook():
 
 
 if __name__ == "__main__":
+    configure()
     app.run(debug=True, port=5000)
